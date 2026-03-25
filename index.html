@@ -93,19 +93,13 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--cream);min-height:10
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5oWLb0RGYD0oCg8qoMt_X3TSjmm0h0FvXerL3XqlSvs4A1CvtIVpxgimIP7HBegmsJQ/exec';
 const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 
-// 活動期間：2026/03 ～ 2026/09，僅顯示已過或當月的月份
+// 活動期間：2026/03 ～ 2026/09，固定顯示全部 7 個月（由新到舊）
 function getActivityMonths(){
   const list=[];
-  const now=new Date();
-  const nowYM=now.getFullYear()*100+(now.getMonth()+1);
-  // 從最新月往前排到活動開始月（2026/03）
-  for(let y=2026,m=9; y*100+m>=2026*100+3; m--){
-    if(m===0){m=12;y--;}  // 不會用到，保險
-    const ym=y*100+m;
-    if(ym>nowYM) continue; // 尚未到來的月份跳過
+  for(let m=9; m>=3; m--){
     list.push({
-      key: y+'/'+String(m).padStart(2,'0'),
-      label: y+'年 '+MONTHS[m-1]
+      key: '2026/'+String(m).padStart(2,'0'),
+      label: '2026年 '+MONTHS[m-1]
     });
   }
   return list;
