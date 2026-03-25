@@ -93,15 +93,19 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--cream);min-height:10
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5oWLb0RGYD0oCg8qoMt_X3TSjmm0h0FvXerL3XqlSvs4A1CvtIVpxgimIP7HBegmsJQ/exec';
 const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
 
-function getRecentMonths(n){
+// 活動期間：2026/03 ～ 2026/09，僅顯示已過或當月的月份
+function getActivityMonths(){
   const list=[];
   const now=new Date();
-  for(let i=0;i<n;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-    const m=d.getMonth()+1;
+  const nowYM=now.getFullYear()*100+(now.getMonth()+1);
+  // 從最新月往前排到活動開始月（2026/03）
+  for(let y=2026,m=9; y*100+m>=2026*100+3; m--){
+    if(m===0){m=12;y--;}  // 不會用到，保險
+    const ym=y*100+m;
+    if(ym>nowYM) continue; // 尚未到來的月份跳過
     list.push({
-      key: d.getFullYear()+'/'+String(m).padStart(2,'0'),
-      label: d.getFullYear()+'年 '+MONTHS[m-1]
+      key: y+'/'+String(m).padStart(2,'0'),
+      label: y+'年 '+MONTHS[m-1]
     });
   }
   return list;
@@ -145,7 +149,7 @@ function doQuery(){
 
 function renderResult(code, data){
   document.getElementById('resCode').textContent=code;
-  const months=getRecentMonths(6);
+  const months=getActivityMonths();
   let html='';
   let anyData=false;
   months.forEach(function(mo){
