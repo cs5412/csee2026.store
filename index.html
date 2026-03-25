@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>店家折扣查詢・自備探險嘉</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--teal:#3A8A7A;--olive:#607038;--orange:#D97B3A;--cream:#FDF6EC;--tan:#E2C98A;--dark:#3E2810;--brown:#7A4F2A;--white:#FFFDF8;--red:#C04030;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:"Noto Sans TC",sans-serif;background:var(--cream);min-height:100vh;padding:0 0 60px;}
+.header{background:linear-gradient(135deg,#2d6b5e,var(--teal));padding:22px 20px 18px;color:#fff;text-align:center;}
+.header h1{font-size:18px;font-weight:900;margin-bottom:4px;}
+.header p{font-size:12px;opacity:.8;}
+.wrap{max-width:480px;margin:0 auto;padding:20px 16px 0;}
+
+.code-card{background:var(--white);border:2.5px solid var(--teal);border-radius:16px;padding:20px;margin-bottom:20px;}
+.code-label{font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.5px;margin-bottom:10px;}
+.code-row{display:flex;gap:10px;}
+.code-inp{flex:1;border:2px solid var(--tan);border-radius:12px;padding:12px 14px;font-size:22px;font-weight:900;
+          color:var(--dark);text-align:center;letter-spacing:6px;font-family:"Noto Sans TC",sans-serif;
+          outline:none;-webkit-appearance:none;background:var(--cream);}
+.code-inp:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(58,138,122,.15);}
+.qbtn{padding:12px 22px;border-radius:12px;border:none;background:var(--teal);color:#fff;
+      font-family:"Noto Sans TC",sans-serif;font-size:15px;font-weight:700;cursor:pointer;
+      -webkit-tap-highlight-color:transparent;transition:background .2s;}
+.qbtn:disabled{opacity:.5;cursor:not-allowed;}
+.qbtn:hover:not(:disabled){background:#2d6b5e;}
+
+.err{color:var(--red);font-size:13px;margin-top:10px;display:none;}
+.err.show{display:block;}
+
+.loading{text-align:center;padding:36px;font-size:14px;color:var(--brown);display:none;}
+.loading.show{display:block;}
+.spin{display:inline-block;width:24px;height:24px;border:3px solid rgba(58,138,122,.2);
+      border-top-color:var(--teal);border-radius:50%;animation:sp .7s linear infinite;
+      vertical-align:middle;margin-right:8px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.result-area{display:none;}
+.result-area.show{display:block;}
+
+.store-badge{background:linear-gradient(135deg,var(--teal),#2d6b5e);color:#fff;
+             border-radius:14px;padding:14px 18px;margin-bottom:16px;text-align:center;}
+.store-badge .sc{font-size:13px;opacity:.8;margin-bottom:2px;}
+.store-badge .sn{font-size:22px;font-weight:900;}
+
+.month-block{background:var(--white);border:2px solid var(--tan);border-radius:14px;
+             padding:16px;margin-bottom:14px;}
+.month-title{font-size:14px;font-weight:900;color:var(--teal);padding-bottom:10px;
+             border-bottom:1.5px dashed var(--tan);margin-bottom:12px;
+             display:flex;justify-content:space-between;align-items:center;}
+.month-cnt{font-size:11px;background:#e8f5f0;color:var(--teal);
+           padding:2px 10px;border-radius:20px;font-weight:700;}
+.stat-row{display:flex;justify-content:space-between;align-items:center;
+          padding:9px 0;border-bottom:1px dashed #f0e8d8;font-size:13px;color:var(--dark);}
+.stat-row:last-child{border-bottom:none;}
+.stat-val{font-weight:900;font-size:16px;color:var(--teal);}
+.stat-val.orange{color:var(--orange);}
+.no-data{color:#b0a090;text-align:center;padding:12px 0;font-size:13px;font-style:italic;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🏪 店家折扣統計查詢</h1>
+  <p>自備探險嘉・綠色美食地圖 活動</p>
+</div>
+<div class="wrap">
+  <div class="code-card">
+    <div class="code-label">🔢 輸入店家代碼（001～120）</div>
+    <div class="code-row">
+      <input class="code-inp" id="codeInp" type="number" placeholder="001"
+             min="1" max="120"
+             oninput="if(this.value.length>3)this.value=this.value.slice(0,3)"
+             onkeydown="if(event.key==='Enter')doQuery()">
+      <button class="qbtn" id="qbtn" onclick="doQuery()">查詢</button>
+    </div>
+    <div class="err" id="errMsg"></div>
+  </div>
+
+  <div class="loading" id="loading"><span class="spin"></span>查詢中…</div>
+
+  <div class="result-area" id="resultArea">
+    <div class="store-badge">
+      <div class="sc">店家代碼</div>
+      <div class="sn" id="resCode"></div>
+    </div>
+    <div id="monthBlocks"></div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw5oWLb0RGYD0oCg8qoMt_X3TSjmm0h0FvXerL3XqlSvs4A1CvtIVpxgimIP7HBegmsJQ/exec';
+const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+
+function getRecentMonths(n){
+  const list=[];
+  const now=new Date();
+  for(let i=0;i<n;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const m=d.getMonth()+1;
+    list.push({
+      key: d.getFullYear()+'/'+String(m).padStart(2,'0'),
+      label: d.getFullYear()+'年 '+MONTHS[m-1]
+    });
+  }
+  return list;
+}
+
+function doQuery(){
+  const raw=document.getElementById('codeInp').value.trim();
+  const errEl=document.getElementById('errMsg');
+  errEl.className='err';
+  if(!raw||isNaN(raw)||Number(raw)<1||Number(raw)>120){
+    errEl.textContent='⚠️ 請輸入有效的店家代碼（001～120）';
+    errEl.className='err show'; return;
+  }
+  const code=String(Number(raw)).padStart(3,'0');
+  document.getElementById('resultArea').className='result-area';
+  document.getElementById('loading').className='loading show';
+  document.getElementById('qbtn').disabled=true;
+
+  // JSONP：用 <script> 標籤，繞過 CORS
+  const cbName='__sq_'+Date.now();
+  window[cbName]=function(data){
+    delete window[cbName];
+    const s=document.getElementById('_jsonp_s');if(s)s.remove();
+    document.getElementById('loading').className='loading';
+    document.getElementById('qbtn').disabled=false;
+    renderResult(code, data||{});
+  };
+  const old=document.getElementById('_jsonp_s');if(old)old.remove();
+  const sc=document.createElement('script');
+  sc.id='_jsonp_s';
+  sc.onerror=function(){
+    delete window[cbName];sc.remove();
+    document.getElementById('loading').className='loading';
+    document.getElementById('qbtn').disabled=false;
+    errEl.textContent='⚠️ 查詢失敗，請稍後再試';
+    errEl.className='err show';
+  };
+  sc.src=SCRIPT_URL+'?action=storeAll&code='+code+'&callback='+cbName;
+  document.body.appendChild(sc);
+}
+
+function renderResult(code, data){
+  document.getElementById('resCode').textContent=code;
+  const months=getRecentMonths(6);
+  let html='';
+  let anyData=false;
+  months.forEach(function(mo){
+    const d=data[mo.key];
+    if(d&&d.count>0){
+      anyData=true;
+      html+='<div class="month-block">'
+        +'<div class="month-title"><span>'+mo.label+'</span>'
+        +'<span class="month-cnt">'+d.count+' 筆折扣</span></div>'
+        +'<div class="stat-row"><span>🧾 40-79元 項數合計</span><span class="stat-val">'+d.cnt10+' 項</span></div>'
+        +'<div class="stat-row"><span>🧾 80元以上 項數合計</span><span class="stat-val">'+d.cnt20+' 項</span></div>'
+        +'<div class="stat-row"><span>💰 折扣總金額</span><span class="stat-val orange">NT$ '+d.total+'</span></div>'
+        +'</div>';
+    } else {
+      html+='<div class="month-block">'
+        +'<div class="month-title">'+mo.label+'</div>'
+        +'<div class="no-data">📭 本月無資料</div>'
+        +'</div>';
+    }
+  });
+  document.getElementById('monthBlocks').innerHTML=html;
+  document.getElementById('resultArea').className='result-area show';
+}
+</script>
+</body>
+</html>
