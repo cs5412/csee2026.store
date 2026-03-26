@@ -58,6 +58,11 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--cream);min-height:10
 .stat-val{font-weight:900;font-size:16px;color:var(--teal);}
 .stat-val.orange{color:var(--orange);}
 .no-data{color:#b0a090;text-align:center;padding:12px 0;font-size:13px;font-style:italic;}
+
+.store-type-badge{display:inline-block;border-radius:20px;padding:4px 14px;
+                  font-size:12px;font-weight:700;margin-top:6px;}
+.type-10{background:#FEF0E0;color:#D97B3A;}
+.type-20{background:#EEF5DA;color:#607038;}
 </style>
 </head>
 <body>
@@ -67,10 +72,11 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--cream);min-height:10
 </div>
 <div class="wrap">
   <div class="code-card">
-    <div class="code-label">🔢 輸入店家代碼（001～120）</div>
+    <div class="code-label">🔢 輸入店家代碼</div>
+    <div style="font-size:11px;color:#7a9a8a;margin-bottom:8px;">飲料：101～199 ｜ 40元餐飲：201～299 ｜ 80元餐飲：301～399</div>
     <div class="code-row">
       <input class="code-inp" id="codeInp" type="number" placeholder="001"
-             min="1" max="120"
+             min="101" max="399"
              oninput="if(this.value.length>3)this.value=this.value.slice(0,3)"
              onkeydown="if(event.key==='Enter')doQuery()">
       <button class="qbtn" id="qbtn" onclick="doQuery()">查詢</button>
@@ -84,6 +90,7 @@ body{font-family:"Noto Sans TC",sans-serif;background:var(--cream);min-height:10
     <div class="store-badge">
       <div class="sc">店家代碼</div>
       <div class="sn" id="resCode"></div>
+      <div id="resType"></div>
     </div>
     <div id="monthBlocks"></div>
   </div>
@@ -109,8 +116,8 @@ function doQuery(){
   const raw=document.getElementById('codeInp').value.trim();
   const errEl=document.getElementById('errMsg');
   errEl.className='err';
-  if(!raw||isNaN(raw)||Number(raw)<1||Number(raw)>120){
-    errEl.textContent='⚠️ 請輸入有效的店家代碼（001～120）';
+  if(!raw||isNaN(raw)||Number(raw)<101||Number(raw)>399||String(Number(raw)).length!==3){
+    errEl.textContent='⚠️ 請輸入有效的店家代碼（101～399）';
     errEl.className='err show'; return;
   }
   const code=String(Number(raw)).padStart(3,'0');
@@ -141,22 +148,41 @@ function doQuery(){
   document.body.appendChild(sc);
 }
 
+function getCodeType(code){
+  const n=Number(code);
+  if(n>=101&&n<=299) return 10;
+  if(n>=301&&n<=399) return 20;
+  return 0;
+}
+
 function renderResult(code, data){
   document.getElementById('resCode').textContent=code;
+  // 顯示店家類型
+  const t=getCodeType(code);
+  const typeEl=document.getElementById('resType');
+  if(t===10){
+    typeEl.innerHTML='<span class="store-type-badge type-10">🥤🍱 飲料 ／ 40元餐飲（折 10 元）</span>';
+  } else if(t===20){
+    typeEl.innerHTML='<span class="store-type-badge type-20">🍱🥡 80元以上餐飲（折 20 元）</span>';
+  } else {
+    typeEl.innerHTML='';
+  }
+  // 依店家類型決定顯示哪些統計欄
+  const show10=(t===10||t===0);
+  const show20=(t===20||t===0);
   const months=getActivityMonths();
   let html='';
-  let anyData=false;
   months.forEach(function(mo){
     const d=data[mo.key];
     if(d&&d.count>0){
-      anyData=true;
+      let stats='';
+      if(show10) stats+='<div class="stat-row"><span>🧾 折10元 項數合計</span><span class="stat-val">'+d.cnt10+' 項</span></div>';
+      if(show20) stats+='<div class="stat-row"><span>🧾 折20元 項數合計</span><span class="stat-val">'+d.cnt20+' 項</span></div>';
+      stats+='<div class="stat-row"><span>💰 折扣總金額</span><span class="stat-val orange">NT$ '+d.total+'</span></div>';
       html+='<div class="month-block">'
         +'<div class="month-title"><span>'+mo.label+'</span>'
         +'<span class="month-cnt">'+d.count+' 筆折扣</span></div>'
-        +'<div class="stat-row"><span>🧾 40-79元 項數合計</span><span class="stat-val">'+d.cnt10+' 項</span></div>'
-        +'<div class="stat-row"><span>🧾 80元以上 項數合計</span><span class="stat-val">'+d.cnt20+' 項</span></div>'
-        +'<div class="stat-row"><span>💰 折扣總金額</span><span class="stat-val orange">NT$ '+d.total+'</span></div>'
-        +'</div>';
+        +stats+'</div>';
     } else {
       html+='<div class="month-block">'
         +'<div class="month-title">'+mo.label+'</div>'
